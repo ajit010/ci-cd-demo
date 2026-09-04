@@ -23,8 +23,8 @@ pipeline{
         stage ('stop and remove old container'){
             steps{
                 // Stop and Remove Old container
-                sh 'docker stop $DOCKER_CONTAINER'
-                sh 'docker rm $DOCKER_CONTAINER'
+                sh 'docker stop $DOCKER_CONTAINER || true'
+                sh 'docker rm $DOCKER_CONTAINER || true'
             }
         }
 
