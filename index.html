@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CI/CD Pipeline Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161923;
+    --panel-alt: #1c2030;
+    --border: #262b3a;
+    --text: #e6e8ef;
+    --text-dim: #8b90a3;
+    --success: #2ecc71;
+    --success-bg: rgba(46, 204, 113, 0.12);
+    --failed: #e5484d;
+    --failed-bg: rgba(229, 72, 77, 0.12);
+    --running: #f5a623;
+    --running-bg: rgba(245, 166, 35, 0.12);
+    --pending: #6b7280;
+    --pending-bg: rgba(107, 114, 128, 0.12);
+    --accent: #5b8cff;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: 0.2px;
+  }
+
+  .brand .logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #8f5bff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .topbar-meta {
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .topbar-meta strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 28px;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .summary-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+
+  .summary-card .label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+  }
+
+  .summary-card .value {
+    font-size: 26px;
+    font-weight: 700;
+  }
+
+  .summary-card .value.success { color: var(--success); }
+  .summary-card .value.failed { color: var(--failed); }
+  .summary-card .value.running { color: var(--running); }
+
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 14px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .section-title .sub {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-dim);
+  }
+
+  .pipelines {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .pipeline-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+
+  .pipeline-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .pipeline-head-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .pipeline-name {
+    font-weight: 600;
+    font-size: 14.5px;
+  }
+
+  .pipeline-branch {
+    font-size: 12px;
+    color: var(--text-dim);
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-transform: capitalize;
+  }
+
+  .status-badge .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  .status-badge.success { background: var(--success-bg); color: var(--success); }
+  .status-badge.success .dot { background: var(--success); }
+
+  .status-badge.failed { background: var(--failed-bg); color: var(--failed); }
+  .status-badge.failed .dot { background: var(--failed); }
+
+  .status-badge.running { background: var(--running-bg); color: var(--running); }
+  .status-badge.running .dot { background: var(--running); animation: pulse 1.2s infinite ease-in-out; }
+
+  .status-badge.pending { background: var(--pending-bg); color: var(--pending); }
+  .status-badge.pending .dot { background: var(--pending); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .pipeline-meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: auto;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .stages {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  .stage {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+  }
+
+  .stage-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 84px;
+  }
+
+  .stage-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    border: 2px solid var(--border);
+    background: var(--panel-alt);
+  }
+
+  .stage-icon.success { border-color: var(--success); color: var(--success); background: var(--success-bg); }
+  .stage-icon.failed { border-color: var(--failed); color: var(--failed); background: var(--failed-bg); }
+  .stage-icon.running { border-color: var(--running); color: var(--running); background: var(--running-bg); }
+  .stage-icon.pending { border-color: var(--border); color: var(--pending); }
+
+  .stage-label {
+    font-size: 11.5px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  .stage-dur {
+    font-size: 10.5px;
+    color: var(--text-dim);
+    opacity: 0.8;
+  }
+
+  .stage-connector {
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    margin: 0 4px 20px;
+    position: relative;
+    top: -2px;
+  }
+
+  .stage-connector.done { background: var(--success); }
+  .stage-connector.failed-path { background: var(--failed); }
+
+  footer {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 20px;
+  }
+
+  @media (max-width: 800px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .stages { flex-wrap: wrap; }
+    .pipeline-meta { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">CI</div>
+    <span>Pipeline Dashboard</span>
+  </div>
+  <div class="topbar-meta">
+    <span>Org: <strong>acme-platform</strong></span>
+    <span>Runner pool: <strong>8 active</strong></span>
+    <span id="clock"><strong>--:--:--</strong></span>
+  </div>
+</div>
+
+<main>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="label">Pipelines Today</div>
+      <div class="value">24</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Successful</div>
+      <div class="value success">19</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Failed</div>
+      <div class="value failed">2</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Running</div>
+      <div class="value running">3</div>
+    </div>
+  </div>
+
+  <h2 class="section-title">
+    Recent Pipelines
+    <span class="sub">Auto-refreshing every 30s (demo data)</span>
+  </h2>
+
+  <div class="pipelines" id="pipelines">
+    <!-- Pipeline 1 -->
+    <div class="pipeline-card">
+      <div class="pipeline-head">
+        <div class="pipeline-head-left">
+          <span class="status-badge success"><span class="dot"></span>success</span>
+          <span class="pipeline-name">api-gateway</span>
+          <span class="pipeline-branch">main</span>
+        </div>
+        <div class="pipeline-meta">
+          <span>#482</span>
+          <span>2 min ago</span>
+          <span>3m 41s</span>
+        </div>
+      </div>
+      <div class="stages">
+        <div class="stage-node">
+          <div class="stage-icon success">&#10003;</div>
+          <div class="stage-label">Build</div>
+          <div class="stage-dur">42s</div>
+        </div>
+        <div class="stage-connector done"></div>
+        <div class="stage-node">
+          <div class="stage-icon success">&#10003;</div>
+          <div class="stage-label">Test</div>
+          <div class="stage-dur">1m 58s</div>
+        </div>
+        <div class="stage-connector done"></div>
+        <div class="stage-node">
+          <div class="stage-icon success">&#10003;</div>
+          <div class="stage-label">Lint</div>
+          <div class="stage-dur">18s</div>
+        </div>
+        <div class="stage-connector done"></div>
+        <div class="stage-node">
+          <div class="stage-icon success">&#10003;</div>
+          <div class="stage-label">Deploy</div>
+          <div class="stage-dur">43s</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline 2 -->
+    <div class="pipeline-card">
+      <div class="pipeline-head">
+        <div class="pipeline-head-left">
+          <span class="status-badge running"><span class="dot"></span>running</span>
+          <span class="pipeline-name">web-frontend</span>
+          <span class="pipeline-branch">feature/checkout-redesign</span>
+        </div>
+        <div class="pipeline-meta">
+          <span>#481</span>
+          <span>4 min ago</span>
+          <span>running&hellip;</span>
+        </div>
+      </div>
+      <div class="stages">
+        <div class="stage-node">
+          <div class="stage-icon success">&#10003;</div>
+          <div class="stage-label">Build</div>
+          <div class="stage-dur">51s</div>
+        </div>
+        <div class="stage-connector done"></div>
+        <div class="stage-node">
+          <div class="stage-icon running">&#9679;</div>
+          <div class="stage-label">Test</div>
+          <div class="stage-dur">1m 12s&hellip;</div>
+        </div>
+        <div class="stage-connector"></div>
+        <div class="stage-node">
+          <div class="stage-icon pending">&#183;</div>
+          <div class="stage-label">Lint</div>
+          <div class="stage-dur">&mdash;</div>
+        </div>
+        <div class="stage-connector"></div>
+        <div class="stage-node">
+          <div class="stage-icon pending">&#183;</div>
+          <div class="stage-label">Deploy</div>
+          <div class="stage-dur">&mdash;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline 3 -->
+    <div class="pipeline-card">
+      <div class="pipeline-head">
+        <div class="pipeline-head-left">
+          <span class="status-badge failed"><span class="dot"></span>failed</span>
+          <span class="pipeline-name">payments-service</span>
+          <span class="pipeline-branch">main</span>
+        </div>
+        <div class="pipeline-meta">
+          <span>#480</span>
+          <span>19 min ago</span>
+          <span>2m 05s</span>
+        </div>
+      </div>
+      <div class="stages">
+        <div class="stage-node">
+          <div class="stage-icon success">&#10003;</div>
+          <div class="stage-label">Build</div>
+          <div class="stage-dur">39s</div>
+        </div>
+        <div class="stage-connector done"></div>
+        <div class="stage-node">
+          <div class="stage-icon failed">&#10005;</div>
+          <div class="stage-label">Test</div>
+          <div class="stage-dur">1m 26s</div>
+        </div>
+        <div class="stage-connector failed-path"></div>
+        <div class="stage-node">
+          <div class="stage-icon pending">&#183;</div>
+          <div class="stage-label">Lint</div>
+          <div class="stage-dur">skipped</div>
+        </div>
+        <div class="stage-connector"></div>
+        <div class="stage-node">
+          <div class="stage-icon pending">&#183;</div>
+          <div class="stage-label">Deploy</div>
+          <div class="stage-dur">skipped</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline 4 -->
+    <div class="pipeline-card">
+      <div class="pipeline-head">
+        <div class="pipeline-head-left">
+          <span class="status-badge success"><span class="dot"></span>success</span>
+          <span class="pipeline-name">worker-queue</span>
+          <span class="pipeline-branch">main</span>
+        </div>
+        <div class="pipeline-meta">
+          <span>#479</span>
+          <span>41 min ago</span>
+          <span>5m 12s</span>
+        </div>
+      </div>
+      <div class="stages">
+        <div class="stage-node">
+          <div class="stage-icon success">&#10003;</div>
+          <div class="stage-label">Build</div>
+          <div class="stage-dur">1m 05s</div>
+        </div>
+        <div class="stage-connector done"></div>
+        <div class="stage-node">
+          <div class="stage-icon success">&#10003;</div>
+          <div class="stage-label">Test</div>
+          <div class="stage-dur">2m 47s</div>
+        </div>
+        <div class="stage-connector done"></div>
+        <div class="stage-node">
+          <div class="stage-icon success">&#10003;</div>
+          <div class="stage-label">Lint</div>
+          <div class="stage-dur">22s</div>
+        </div>
+        <div class="stage-connector done"></div>
+        <div class="stage-node">
+          <div class="stage-icon success">&#10003;</div>
+          <div class="stage-label">Deploy</div>
+          <div class="stage-dur">58s</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    CI/CD Pipeline Dashboard &mdash; static demo, no live data source connected
+  </footer>
+</main>
+
+<script>
+  function updateClock() {
+    const now = new Date();
+    const el = document.getElementById('clock');
+    if (el) {
+      el.innerHTML = '<strong>' + now.toLocaleTimeString() + '</strong>';
+    }
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+</script>
+
+</body>
+</html>
