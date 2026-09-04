@@ -9,7 +9,7 @@ pipeline{
     stages{
         stage('checkout code'){
             steps{
-                git '<<git-repo-url>>'
+                git 'https://github.com/ajit010/ci-cd-demo.git'
             }
         }
 
