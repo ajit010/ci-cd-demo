@@ -7,12 +7,7 @@ pipeline{
     }
 
     stages{
-        stage('checkout code'){
-            steps{
-                git 'https://github.com/ajit010/ci-cd-demo.git'
-            }
-        }
-
+        
         stage ('build the docker image'){
             steps{
                 // Build the Docker Image
